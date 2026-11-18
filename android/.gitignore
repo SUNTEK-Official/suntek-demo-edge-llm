@@ -1,0 +1,29 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+# Android 构建文件
+*.apk
+*.aab
+/build/
+/app/build/
+*.iml
+/.idea/
+/local.properties
+
+# AI 模型大文件 (根据你的项目调整)
+*.bin
+*.params
+*.onnx
+/assets/models/
