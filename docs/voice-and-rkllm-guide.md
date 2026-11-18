@@ -1,572 +1,173 @@
 # SUNTEK Edge AI Integration & Troubleshooting Guide
 
+Reference documentation for **SUNTEK Edge AI** (`com.suntek.sample.edgeai`), demonstrating offline Rockchip NPU LLM inference (`RKLLMEngine`), Android `TextToSpeech` voice output, optional offline Vosk speech recognition, and hardware status LED control (`LightingController` via `SdkApiJar`) on **SUNTEK AI-Box (SA7 / RK3576)** terminals.
 
 ---
 
-# 🎉 Android -
+## 1. Overview & System Requirements
 
-## ✅
+### Key Capabilities
+- **On-Device LLM Inference**: Runs quantized `Qwen2.5-1.5B-Instruct` (`W8A8`) locally on the Rockchip RK3576 NPU with zero cloud API calls.
+- **Streaming Token Output**: Delivers token-by-token responses asynchronously through `RKLLMCallback.onResult(String text, int stateCode)`.
+- **Voice Interaction**: Built-in Android `TextToSpeech` broadcast toggle with speech rate/pitch controls, plus helper scripts for downloading offline Vosk ASR models.
+- **Hardware Status Lighting Command Intercept**: `MainActivity` parses color and LED control prompts (`ColorParser` + `LightingController`) directly via `SdkApiJar_V1.250915.0914.aar`.
 
-###
-- ✅ ** Qwen2.5-1.5B ** - ,
-- ✅ ** ** -
-- ✅ ** ** -
-- ✅ ** UI** -
-
-###
-- ** **: RK3576
-- **Android**: 11.0 (API 30)
-- ** **: arm64-v8a
-- ** **: 4GB
-
-## 📱
-
-```
-┌─────────────────────────────┐
-│ (RKLLM) │
-│ [ ] ✅ │ ←
-├─────────────────────────────┤
-│                             │
-│ │
-│ ( ) │
-│                             │
-├─────────────────────────────┤
-│ [ ] [ ] [ ] │
-└─────────────────────────────┘
-```
-
-## 🚀
-
-### 1. APK
-```bash
-cd D:\WORK\RKLLM\myAPK
-./gradlew assembleDebug
-```
-
-### 2.
-```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-### 3.
-```bash
-adb shell am start -n com.xie.rkai/.MainActivity
-```
-
-## 💡
-
-###
-1. ( 2GB, 1-2 )
-2.
-3. "RKLLM !"
-
-###
-1.
-2. " "
-3.
-4. ** **
-
-###
-- ** ** -
- - :
- - : ,
-
-- ** ** -
-
-## 📊
-
-### RKLLM
-- ** **: Qwen2.5-1.5B-Instruct
-- ** **: W8A8 (8 , 8 )
-- ** **: 2048 tokens
-- ** **: 4096 tokens
-- ** **:
-  - top_k: 1
-  - top_p: 0.95
-  - temperature: 0.8
-  - repeat_penalty: 1.1
-
-### (TTS)
-- ** **: Android TextToSpeech
-- ** **: ( )
-- ** **:
- -
- -
- -
-
-### (RK3576)
-- ** **: 30-60
-- ** (TTFT)**: 1-3
-- ** **: 10-20 tokens/
-- ** **: ~2.5GB
-
-## 🎯
-
-###
-- ✅
-- ✅
-- ✅
-- ✅
-- ✅
-
-###
-```
--
-- ?
-- ?
--
--
-```
-
-## 🔧
-
-### 1:
-** **:
-- RK3576
-- ( 4GB)
--
-
-### 2:
-** **:
--
--
--
-
-** **:
--
--
-
-### 3:
-** **:
-1.
-2.
-3. → , TTS
-
-### 4:
-** **:
-- NPU
-- ( )
--
-
-## 📝
-
-### v1.0 ( )
-- ✅ RKLLM
-- ✅ Qwen2.5-1.5B
-- ✅
-- ✅
-- ✅ UI
-
-## 📂
-
-```
-D:\WORK\RKLLM\myAPK\
-├── app/
-│   ├── src/main/
-│   │   ├── java/com/xie/rkai/
-│ │ │ ├── MainActivity.java #
-│ │ │ ├── RKLLMEngine.java # LLM
-│ │ │ └── RKLLMCallback.java #
-│   │   ├── cpp/
-│ │ │ └── rkllm_jni.cpp # JNI
-│   │   ├── assets/
-│   │   │   └── models/
-│ │ │ └── Qwen2.5...rkllm #
-│   │   ├── jniLibs/arm64-v8a/
-│   │   │   ├── librkllmrt.so         # RKLLM Runtime
-│   │   │   └── libomp.so             # OpenMP
-│   │   └── res/
-│   │       └── layout/
-│ │ └── activity_main.xml # UI
-│ └── build.gradle # Gradle
-└── README.md #
-```
-
-## 💻
-
-###
-- ** **: Java + C++
-- ** **: Gradle + CMake
-- **JNI**: Java C++
-- ** **: RKLLM Runtime
-
-###
-- **Android Studio**: Arctic Fox
-- **Android SDK**: API 30+
-- **Android NDK**: r21e+
-- **JDK**: 11+
-
-## 📖
-
-- [RKLLM GitHub](https://github.com/airockchip/rknn-llm)
-- [Qwen ](https://huggingface.co/Qwen)
-- [RKLLM ](D:\WORK\RKLLM\rknn-llm\doc)
-
-## 🎊
-
- Android , :
-
-1. ✅ ** ** - ,
-2. ✅ ** ** - ,
-3. ✅ ** ** -
-4. ✅ ** ** -
-
- , , !
+### Hardware & Build Environment
+| Component | Requirement / Value |
+| :--- | :--- |
+| **Target SoC / Terminal** | Rockchip **RK3576** (`SUNTEK AI-Box SA7` / `arm64-v8a`) |
+| **Android OS Support** | Android 11.0+ (`minSdk 30`, `compileSdk 36`, `targetSdk 36`) |
+| **Free Device Storage** | At least **4 GB** available (`~2 GB` model asset copied to app files dir on first launch) |
+| **Toolchain** | Android Studio, JDK 11+, NDK + CMake `3.22.1`, `c++_shared` STL |
 
 ---
 
-** **: 2026-02-26
-** **: 1.0
-** **: ✅
+## 2. Application UI Layout
 
+```text
+┌─────────────────────────────────────────────┐
+│  SUNTEK Edge AI (RKLLM NPU)                 │
+│  [Voice Output Switch]  ON / OFF            │
+├─────────────────────────────────────────────┤
+│                                             │
+│  Scrollable Streaming Conversation View     │
+│  (Initialization logs, user prompts & tokens│
+│   streamed from RKLLMCallback)              │
+│                                             │
+├─────────────────────────────────────────────┤
+│  [ Prompt / Command Input ]  [Send] [Stop]  │
+└─────────────────────────────────────────────┘
+```
 
 ---
 
-#
+## 3. Quick Build, Model Provisioning & Device Launch
 
-## 🎤
-
-### 1. (Speech-to-Text)
--
--
--
-
-### 2. (Text-to-Speech)
--
--
--
-
-## 🎯
-
-###
-1. ** ** 🎤
-2.
-3.
-4.
-
-###
-1. ** **
-2. ,
-3.
-
-## 📱
-
-```
-┌─────────────────────────────┐
-│ (RKLLM) │
-│ [ ] ✅ │
-├─────────────────────────────┤
-│                             │
-│ │
-│                             │
-├─────────────────────────────┤
-│ 🎤 [ ] [ ] [ ] │
-└─────────────────────────────┘
-```
-
-## 🔧
-
-### Android API
-1. **SpeechRecognizer** -
-2. **TextToSpeech** -
-3. **RECORD_AUDIO** -
-
-###
- :
-- `android.permission.RECORD_AUDIO` - ( )
-
-## 💡
-
-###
-- ,
--
--
-
-###
-- ,
--
--
-
-## 🔄
-
-```bash
-#
-adb uninstall com.xie.rkai
-
-#
-adb install "D:/WORK/RKLLM/myAPK/app/build/outputs/apk/debug/app-debug.apk"
-```
-
-## 📊
-
-| | | |
-|------|------|------|
-| | | + |
-| | | + |
-| | | |
-| | | + |
-
-## 🎮
-
-###
-1. 🎤
-2. →
-3.
-4.
-5.
-6. +
-
-### ( )
-1.
-2. " "
-3.
-4. + ( )
-
-## 🐛
-
-###
--
--
--
-
-###
--
--
-- TTS
-
-###
--
--
--
-
-## 📝
-
- , :
-1. ( " ")
-2.
-3.
-4.
-5.
-
-## ✨
-
- , **1-2 **, :
-- ✅
-- ✅
-- ✅ UI
-- ✅
-- ✅
-
- !🎉
-
-
----
-
-# Vosk
-
-## 📥
-
-### : ( )
-
- Python :
-
-```python
-import os
-import zipfile
-import requests
-from pathlib import Path
-
-#
-MODEL_NAME = "vosk-model-small-cn-0.22"
-MODEL_URL = f"https://alphacephei.com/vosk/models/{MODEL_NAME}.zip"
-TARGET_DIR = "app/src/main/assets"
-
-def download_model():
- print(f" {MODEL_NAME}...")
- print(f" : {MODEL_URL}")
-
- #
-    Path(TARGET_DIR).mkdir(parents=True, exist_ok=True)
-
- #
-    response = requests.get(MODEL_URL, stream=True)
-    total_size = int(response.headers.get('content-length', 0))
-
-    zip_path = os.path.join(TARGET_DIR, f"{MODEL_NAME}.zip")
-
-    with open(zip_path, 'wb') as f:
-        if total_size == 0:
-            f.write(response.content)
-        else:
-            downloaded = 0
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-                downloaded += len(chunk)
-                percent = (downloaded / total_size) * 100
- print(f"\r : {percent:.1f}%", end='')
-
- print(f"\n : {zip_path}")
-
- #
- print(f" ...")
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        zip_ref.extractall(TARGET_DIR)
-
- # zip
-    os.remove(zip_path)
-
- print(f"✓ : {os.path.join(TARGET_DIR, MODEL_NAME)}")
- print(f" : {sum(f.stat().st_size for f in Path(os.path.join(TARGET_DIR, MODEL_NAME)).rglob('*')) / (1024*1024):.1f} MB")
-
-if __name__ == "__main__":
-    download_model()
-```
-
- `download_model.py`, :
-```bash
-python download_model.py
-```
-
-### :
-
-1. ** Vosk **:
- - : https://alphacephei.com/vosk/models
- - : https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip
-
-2. ** **:
+### Step 1: Provision Model Assets
+1. Download the quantized `.rkllm` model (`Qwen2.5-1.5B-Instruct_W8A8_RK3576.rkllm`) from [**GitHub Releases**](https://github.com/SUNTEK-Official/suntek-demo-edge-llm/releases) and place it inside `android/app/src/main/assets/models/`:
    ```bash
-   # Windows
- # zip
- # vosk-model-small-cn-0.22
-
-   # Linux/Mac
-   unzip vosk-model-small-cn-0.22.zip
+   bash ./scripts/setup_rkllm_model.sh
    ```
-
-3. ** **:
+2. *(Optional)* Download an offline Vosk ASR speech recognition model (e.g., `vosk-model-small-en-us-0.15`) into `android/app/src/main/assets/`:
+   ```bash
+   python3 ./scripts/download_vosk_model.py --model vosk-model-small-en-us-0.15
    ```
- :
-   app/src/main/assets/vosk-model-small-cn-0.22/
-
- :
-   app/src/main/assets/
+   Expected `android/app/src/main/assets/` structure:
+   ```text
+   android/app/src/main/assets/
    ├── models/
    │   └── Qwen2.5-1.5B-Instruct_W8A8_RK3576.rkllm
-   └── vosk-model-small-cn-0.22/
+   └── vosk-model-small-en-us-0.15/        # Optional offline ASR model
        ├── am/
-       ├── graph/
-       ├── README
-       └── ...
+       ├── conf/
+       └── graph/
    ```
 
-### : wget (Linux/Mac)
+### Step 2: Build & Install APK
+Prebuilt `arm64-v8a` runtimes (`android/app/src/main/jniLibs/arm64-v8a/{librkllmrt.so,libomp.so}`) and `android/app/libs/SdkApiJar_V1.250915.0914.aar` are bundled directly in the repository:
 
 ```bash
-cd app/src/main/assets
-wget https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip
-unzip vosk-model-small-cn-0.22.zip
-rm vosk-model-small-cn-0.22.zip
-```
-
-## 📊
-
-| | | | | |
-|---------|------|------|--------|---------|
-| vosk-model-small-cn-0.22 | ~40MB | | | , |
-| vosk-model-cn-0.22 | ~1.2GB | | | |
-
-** **: RK3576 `small` (40MB)
-
-## ✅
-
- , :
-
-```bash
-#
-ls -lh app/src/main/assets/vosk-model-small-cn-0.22/
-
-# :
-# am/ -
-# graph/ -
-# README -
-# ...
-```
-
-## 🔧
-
- , :
-1. assets
-2.
-3.
-
- 10-30 .
-
-## 📝
-
- :
-
-1.
-2. `vosk-model-small-cn-0.22`
-3. `VoskSpeechRecognizer.java` `MODEL_NAME`
-
-## 🌐
-
-###
-- `vosk-model-small-cn-0.22` - (40MB)
-- `vosk-model-cn-0.22` - (1.2GB)
-
-###
-- `vosk-model-small-en-us-0.15` - (40MB)
-- `vosk-model-en-us-0.22` - (1.8GB)
-
-###
- : https://alphacephei.com/vosk/models
-
-## 💾
-
-- APK : ~2GB ( LLM )
-- : ~40MB ( )
-- : ~2.5GB
-
-## 🚀
-
- :
-
-```bash
-# 1.
-cd app/src/main/assets
-wget https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip
-unzip vosk-model-small-cn-0.22.zip
-rm vosk-model-small-cn-0.22.zip
-
-# 2. APK
-cd ../../..
+cd android
 ./gradlew assembleDebug
-
-# 3.
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n com.suntek.sample.edgeai/.MainActivity
 ```
 
-## ❓
+---
 
-### Q: ?
-A: GitHub :
+## 4. RKLLM Inference Configuration & RK3576 Performance Reference
+
+### Model & Runtime Initialization (`MainActivity.initRKLLM` / `RKLLMEngine`)
+- **Model Identifier**: `Qwen2.5-1.5B-Instruct_W8A8_RK3576.rkllm`
+- **Quantization**: `W8A8` (8-bit weights, 8-bit activations)
+- **Token Limits** (passed via `rkllmEngine.init(context, callback, 2048, 4096)`):
+  - `max_new_tokens`: `2048`
+  - `max_context_len`: `4096`
+- **Sampling Profile** (default RKLLM sampling parameters in `rkllm_jni.cpp` / runtime): `top_k = 1`, `top_p = 0.95`, `temperature = 0.8`, `repeat_penalty = 1.1`.
+- **JNI Entrypoints (`rkllm_jni.cpp` -> `com.suntek.sample.edgeai.RKLLMEngine`)**:
+  - `initNative(String modelPath, int maxNewTokens, int maxContextLen, RKLLMCallback callback)`
+  - `runNative(String prompt)`
+  - `stopNative()`
+  - `isRunningNative()`
+  - `clearHistoryNative(boolean keepSystemPrompt)`
+  - `destroyNative()`
+
+### Expected RK3576 Runtime Reference Metrics
+| Metric | Reference Range | Notes |
+| :--- | :--- | :--- |
+| **First-Launch Asset Copy** | `~1 - 2 min` | Copies `~2 GB` `.rkllm` file from APK assets to `context.getFilesDir()` once |
+| **Cold Model Load** | `~30 - 60 sec` | NPU weight mapping and graph initialization |
+| **Time to First Token (TTFT)** | `~1 - 3 sec` | Depends on prompt length |
+| **Decode Throughput** | `~10 - 20 tokens/sec` | Steady-state generation on RK3576 NPU |
+| **Runtime RAM Footprint** | `~2.5 GB` | Keep background heavy apps closed on 4 GB SKUs |
+
+---
+
+## 5. Speech Synthesis (`TextToSpeech`) & Offline Vosk ASR Models
+
+### Built-In TTS Voice Broadcast
+- `MainActivity` initializes `android.speech.tts.TextToSpeech` at speech rate `1.0f` and pitch `1.0f`, falling back gracefully if no system TTS engine is active (disables `voiceOutputSwitch` cleanly without crashing).
+- Enable or disable read-aloud responses in real time using the top **Voice Output** switch.
+
+### Offline Vosk Speech Model Options
+| Archive Name | Approximate Size | Latency | Recognition Accuracy | Recommended Use Case |
+| :--- | :---: | :---: | :---: | :--- |
+| `vosk-model-small-en-us-0.15` | `~40 MB` | Fast | Standard | Real-time edge voice commands on RK3576 |
+| `vosk-model-en-us-0.22` | `~1.8 GB` | Slower | High | High-accuracy large-vocabulary English dictation |
+| `vosk-model-small-cn-0.22` | `~42 MB` | Fast | Standard | Optional localized command testing |
+
+Verify downloaded assets before rebuilding:
 ```bash
-# GitHub ( )
-wget https://github.com/alphacep/vosk-android/raw/master/gradle/wrapper/vosk-model-small-cn-0.22.zip
+ls -lh android/app/src/main/assets/
 ```
 
-### Q: ?
-A: small , 85-90%
+---
 
-### Q: ?
-A: Vosk , ,
+## 6. Project Structure (`android/`)
 
-### Q: ?
-A: , . .
+```text
+android/
+├── settings.gradle                                      # Includes :app and flatDir('app/libs')
+├── build.gradle
+└── app/
+    ├── build.gradle                                     # NDK CMake 3.22.1, arm64-v8a, SdkApiJar AAR
+    ├── libs/
+    │   └── SdkApiJar_V1.250915.0914.aar                 # Hardware lighting control SDK
+    └── src/main/
+        ├── AndroidManifest.xml
+        ├── cpp/
+        │   ├── CMakeLists.txt                           # Links ../jniLibs/${ANDROID_ABI}/{librkllmrt,libomp}.so
+        │   ├── include/rkllm.h
+        │   └── rkllm_jni.cpp                            # Java_com_suntek_sample_edgeai_RKLLMEngine_*
+        ├── jniLibs/arm64-v8a/
+        │   ├── librkllmrt.so
+        │   └── libomp.so
+        └── java/com/suntek/sample/edgeai/
+            ├── MainActivity.java                        # Chat UI, TTS lifecycle & command dispatch
+            ├── RKLLMEngine.java                         # Asset copy & JNI wrapper
+            ├── RKLLMCallback.java                       # Streaming token state callback
+            ├── LightingController.java                  # SdkApi system service LED driver
+            └── ColorParser.java                         # Prompt color & brightness parser
+```
 
-## 📖
+---
 
-- Vosk : https://alphacephei.com/vosk/
-- Vosk Android: https://github.com/alphacep/vosk-android
-- : https://alphacephei.com/vosk/models
+## 7. Troubleshooting
+
+### Application Fails to Launch or Crashes Immediately
+- Confirm the target device uses an **arm64-v8a** Rockchip **RK3576** SoC with NPU kernel driver enabled.
+- Verify at least **4 GB** of free internal storage before installing and running first launch.
+- Inspect logcat via `adb logcat -s RKLLMEngine RKLLM_JNI`.
+
+### `RKLLMEngine.init()` Returns a Non-Zero Error Code
+- **`-2`**: Engine already initialized (`isInitialized == true`).
+- **`-3` / `-4`**: Missing or unreadable `assets/models/Qwen2.5-1.5B-Instruct_W8A8_RK3576.rkllm` asset during copy; confirm filename matches `RKLLMEngine.MODEL_FILE_NAME` byte-for-byte.
+- Re-install with `adb uninstall com.suntek.sample.edgeai && adb install -r app-debug.apk` if a partial model copy was interrupted.
+
+### No Voice Broadcast Audio (`TextToSpeech`)
+- Verify the **Voice Output** switch is enabled and media volume is unmuted.
+- Check Android **Settings -> Accessibility / System -> Text-to-speech output** to ensure a working TTS engine and English voice pack are installed.
+
+### Slow Token Generation
+- Check SoC temperature under sustained load to rule out thermal throttling.
+- Close background memory-intensive applications so NPU CMA and system RAM remain available.
